@@ -1,0 +1,36 @@
+# .NET / Visual Studio
+bin/
+obj/
+[Bb]uild/
+[Bb]uild[Ll]og.*
+
+# Visual Studio cache/options
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Resharper / Rider
+_ReSharper*/
+.Rider*/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Publish
+**/publish/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
