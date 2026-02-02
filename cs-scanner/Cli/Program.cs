@@ -12,14 +12,17 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        if (args.Length < 2)
+        if (args.Length < 1)
         {
-            Console.Error.WriteLine("Usage: scanner <solutionOrProjectPath> <outputJsonlPath>");
+            Console.Error.WriteLine("Usage: scanner <solutionOrProjectPath>");
             return 1;
         }
 
         var inputPath = args[0];
-        var outputPath = args[1];
+
+        // Hardcoded output paths (JSONL)
+        var outputPath = Path.GetFullPath("contracts.jsonl");
+        var dataMembersPath = Path.GetFullPath("data-members.jsonl");
 
         if (!File.Exists(inputPath))
         {
@@ -32,9 +35,10 @@ public static class Program
             MSBuildLocator.RegisterDefaults();
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputPath)) ?? ".");
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
+        Directory.CreateDirectory(Path.GetDirectoryName(dataMembersPath) ?? ".");
 
-        await using var stream = new FileStream(
+        await using var outStream = new FileStream(
             outputPath,
             FileMode.Create,
             FileAccess.Write,
@@ -42,14 +46,31 @@ public static class Program
             bufferSize: 4096,
             useAsync: true);
 
-        await using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        await using var outWriter = new StreamWriter(outStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        await using var dmStream = new FileStream(
+            dataMembersPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.Read,
+            bufferSize: 4096,
+            useAsync: true);
+
+        await using var dmWriter = new StreamWriter(dmStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         var scanner = new CoreScanner();
         await scanner.ScanAsync(inputPath, async result =>
         {
             var json = JsonSerializer.Serialize(new { type = result.Type, name = result.Name });
-            await writer.WriteLineAsync(json).ConfigureAwait(false);
-            await writer.FlushAsync().ConfigureAwait(false);
+            await outWriter.WriteLineAsync(json).ConfigureAwait(false);
+            await outWriter.FlushAsync().ConfigureAwait(false);
+
+            if (result.DataMembers is { Length: > 0 })
+            {
+                var dmJson = JsonSerializer.Serialize(new { type = result.Type, name = result.Name, dataMembers = result.DataMembers });
+                await dmWriter.WriteLineAsync(dmJson).ConfigureAwait(false);
+                await dmWriter.FlushAsync().ConfigureAwait(false);
+            }
         }).ConfigureAwait(false);
 
         return 0;

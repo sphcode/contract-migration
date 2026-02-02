@@ -13,5 +13,5 @@ Minimal C# scanner using Roslyn `MSBuildWorkspace` to find types annotated with:
 ## Build & Run
 
 ```bash
-dotnet run --project Cli/Cli.csproj -- <path/to/solution.sln|project.csproj> <output.jsonl>
+dotnet run --project Cli/Cli.csproj -- <path/to/solution.sln|project.csproj>
 ```
