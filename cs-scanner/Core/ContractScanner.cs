@@ -1,8 +1,3 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -12,10 +7,6 @@ namespace ContractScanner.Core;
 
 public sealed class ContractScanner
 {
-    private const string ServiceContractAttribute = "global::System.ServiceModel.ServiceContractAttribute";
-    private const string DataContractAttribute = "global::System.Runtime.Serialization.DataContractAttribute";
-    private const string DataMemberAttribute = "global::System.Runtime.Serialization.DataMemberAttribute";
-
     private static readonly SymbolDisplayFormat TypeNameFormat = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
@@ -100,7 +91,7 @@ public sealed class ContractScanner
                     continue;
                 }
 
-                var match = GetMatch(namedType);
+                var match = ContractAttributeMatcher.GetMatch(namedType);
                 if (match is null)
                 {
                     continue;
@@ -113,66 +104,9 @@ public sealed class ContractScanner
                     continue;
                 }
 
-                // If this is a DataContract, collect members decorated with [DataMember]
-                string[]? membersArray = null;
-                if (string.Equals(match.Value.Type, "DataContract", StringComparison.Ordinal))
-                {
-                    var members = new List<string>();
-                    foreach (var memberSymbol in namedType.GetMembers())
-                    {
-                        if (memberSymbol is IFieldSymbol or IPropertySymbol)
-                        {
-                            foreach (var attr in memberSymbol.GetAttributes())
-                            {
-                                var attrName = attr.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                                if (attrName is null)
-                                {
-                                    continue;
-                                }
-
-                                if (string.Equals(attrName, DataMemberAttribute, StringComparison.Ordinal))
-                                {
-                                    members.Add(memberSymbol.Name);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (members.Count > 0)
-                    {
-                        membersArray = members.ToArray();
-                    }
-                }
-
+                var membersArray = DataMemberCollector.CollectMembers(match.Value.Type, namedType);
                 await onResult(new ScanResult(match.Value.Type, name, membersArray)).ConfigureAwait(false);
             }
         }
     }
-
-    private static (string Type, string Name)? GetMatch(INamedTypeSymbol typeSymbol)
-    {
-        foreach (var attribute in typeSymbol.GetAttributes())
-        {
-            var attributeName = attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            if (attributeName is null)
-            {
-                continue;
-            }
-
-            if (string.Equals(attributeName, ServiceContractAttribute, StringComparison.Ordinal))
-            {
-                return ("ServiceContract", typeSymbol.Name);
-            }
-
-            if (string.Equals(attributeName, DataContractAttribute, StringComparison.Ordinal))
-            {
-                return ("DataContract", typeSymbol.Name);
-            }
-        }
-
-        return null;
-    }
 }
-
-public readonly record struct ScanResult(string Type, string Name, string[]? DataMembers = null);
