@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,11 +15,12 @@ public static class Program
     {
         if (args.Length < 1)
         {
-            Console.Error.WriteLine("Usage: scanner <solutionOrProjectPath>");
+            Console.Error.WriteLine("Usage: scanner <solutionOrProjectPath> [--verbose]");
             return 1;
         }
 
         var inputPath = args[0];
+        var verbose = args.Any(static arg => string.Equals(arg, "--verbose", StringComparison.OrdinalIgnoreCase));
 
         // Hardcoded output paths (JSONL)
         var outputPath = Path.GetFullPath("contracts.jsonl");
@@ -71,7 +73,8 @@ public static class Program
                 await dmWriter.WriteLineAsync(dmJson).ConfigureAwait(false);
                 await dmWriter.FlushAsync().ConfigureAwait(false);
             }
-        }).ConfigureAwait(false);
+        },
+        log: verbose ? static message => Console.Error.WriteLine($"[scanner] {message}") : null).ConfigureAwait(false);
 
         return 0;
     }

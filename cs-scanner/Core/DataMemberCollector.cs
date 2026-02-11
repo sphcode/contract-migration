@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace ContractScanner.Core;
 
@@ -22,13 +23,7 @@ internal static class DataMemberCollector
             {
                 foreach (var attr in memberSymbol.GetAttributes())
                 {
-                    var attrName = attr.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                    if (attrName is null)
-                    {
-                        continue;
-                    }
-
-                    if (string.Equals(attrName, DataMemberAttribute, StringComparison.Ordinal))
+                    if (IsDataMemberAttribute(attr))
                     {
                         members.Add(memberSymbol.Name);
                         break;
@@ -38,5 +33,26 @@ internal static class DataMemberCollector
         }
 
         return members.Count > 0 ? members.ToArray() : null;
+    }
+
+    private static bool IsDataMemberAttribute(AttributeData attribute)
+    {
+        var symbolName = attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (string.Equals(symbolName, DataMemberAttribute, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var syntax = attribute.ApplicationSyntaxReference?.GetSyntax() as AttributeSyntax;
+        if (syntax is null)
+        {
+            return false;
+        }
+
+        var syntaxName = syntax.Name.ToString();
+        return string.Equals(syntaxName, "DataMember", StringComparison.Ordinal)
+            || string.Equals(syntaxName, "DataMemberAttribute", StringComparison.Ordinal)
+            || syntaxName.EndsWith(".DataMember", StringComparison.Ordinal)
+            || syntaxName.EndsWith(".DataMemberAttribute", StringComparison.Ordinal);
     }
 }
